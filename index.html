@@ -44,7 +44,6 @@
 
     .product-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
     
-    /* Imagens maiores no catálogo (320px de altura) */
     .carousel { position: relative; width: 100%; height: 320px; background: #e2e8f0; cursor: pointer; }
     .carousel img { width: 100%; height: 100%; object-fit: cover; display: none; }
     .carousel img.active { display: block; }
@@ -59,7 +58,6 @@
     .admin-panel { padding: 15px; display: none; }
     .admin-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
 
-    /* Modais */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; }
     #loginModal { align-items: flex-end; }
     #loginModal .modal-content { background: white; padding: 20px; border-radius: 20px 20px 0 0; width: 100%; }
@@ -67,7 +65,6 @@
     #productModal { align-items: center; justify-content: center; padding: 15px; }
     #productModal .modal-content { background: white; padding: 20px; border-radius: 16px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; position: relative; }
 
-    /* MODAL TELA CHEIA PARA FOTOS (LIGHTBOX) */
     .lightbox {
       display: none;
       position: fixed;
@@ -322,6 +319,11 @@
       });
     }
 
+    // Função auxiliar para remover acentos na busca
+    function removeAccents(str) {
+      return (str || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
     function renderProducts() {
       const catalog = document.getElementById('catalog');
       catalog.innerHTML = "";
@@ -331,9 +333,16 @@
         list = products.filter(p => String(p.folderId) === String(activeFolderFilter));
       }
 
-      const query = document.getElementById('searchInput').value.toLowerCase();
+      // Busca sem erros e sem acentos
+      const searchEl = document.getElementById('searchInput');
+      const query = searchEl ? removeAccents(searchEl.value.trim()) : "";
+
       if (query) {
-        list = list.filter(p => p.name.toLowerCase().includes(query) || p.desc.toLowerCase().includes(query));
+        list = list.filter(p => {
+          const nameClean = removeAccents(p.name);
+          const descClean = removeAccents(p.desc);
+          return nameClean.includes(query) || descClean.includes(query);
+        });
       }
 
       if (list.length === 0) {
@@ -366,8 +375,8 @@
         card.innerHTML = `
           <div class="carousel">${imagesHTML}${carouselControls}</div>
           <div class="product-info">
-            <h3 onclick="openProductModal('${prod.id}')">${prod.name}</h3>
-            <p onclick="openProductModal('${prod.id}')">${prod.desc}</p>
+            <h3 onclick="openProductModal('${prod.id}')">${prod.name || 'Sem Nome'}</h3>
+            <p onclick="openProductModal('${prod.id}')">${prod.desc || ''}</p>
             ${folderObj ? `<span class="badge-pasta">📂 ${folderObj.name}</span>` : ''}
             ${adminButtons}
           </div>
@@ -407,9 +416,9 @@
           ${imagesHTML}
           ${carouselControls}
         </div>
-        <h2 style="font-size: 1.3rem; margin-bottom: 8px; color: var(--text-color);">${prod.name}</h2>
+        <h2 style="font-size: 1.3rem; margin-bottom: 8px; color: var(--text-color);">${prod.name || 'Sem Nome'}</h2>
         ${folderObj ? `<span class="badge-pasta" style="margin-bottom: 12px; display:inline-block;">📂 ${folderObj.name}</span>` : ''}
-        <div style="color: #475569; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-top: 8px;">${prod.desc}</div>
+        <div style="color: #475569; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-top: 8px;">${prod.desc || ''}</div>
         <button class="btn btn-primary btn-block" style="margin-top: 15px;" onclick="openLightboxFromProd('${prod.id}', 0)">🔍 Abrir Foto em Tela Cheia</button>
       `;
 
