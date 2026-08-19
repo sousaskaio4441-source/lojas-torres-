@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title id="siteTitle">Catálogo Online</title>
+  <title id="siteTitle">LOJAS TORRES [BREJO]</title>
   <style>
     :root {
       --primary-color: #2563eb;
@@ -79,7 +79,7 @@
   <header>
     <div class="brand">
       <img id="logoImg" src="" alt="Logo">
-      <h1 id="headerTitle">Catálogo Online</h1>
+      <h1 id="headerTitle">LOJAS TORRES [BREJO]</h1>
     </div>
     <button class="btn" id="loginBtn" onclick="openLoginModal()">Admin</button>
   </header>
@@ -157,7 +157,7 @@
             <input type="file" id="prodImagesInput" accept="image/*" multiple>
           </div>
           <button type="submit" class="btn btn-success btn-block" id="submitBtn">Salvar Produto</button>
-          <button type="button" class="btn btn-block" style="background:#cbd5e1;" onclick="resetProductForm()">Limpar Formulario</button>
+          <button type="button" class="btn btn-block" style="background:#cbd5e1;" onclick="resetProductForm()">Limpar Formulário</button>
         </form>
       </div>
     </div>
@@ -190,7 +190,7 @@
     let activeFolderFilter = "ALL";
     let tempLogoBase64 = null;
 
-    let settings = { title: "Catálogo Online", primaryColor: "#2563eb", bgColor: "#f1f5f9", logo: "" };
+    let settings = { title: "LOJAS TORRES [BREJO]", primaryColor: "#2563eb", bgColor: "#f1f5f9", logo: "" };
 
     function init() { fetchDataFromGoogle(); }
 
@@ -208,14 +208,18 @@
           renderFoldersManageList();
           renderProducts();
           document.getElementById('loadingSpinner').style.display = 'none';
+        })
+        .catch(err => {
+          console.error("Erro ao carregar dados:", err);
+          document.getElementById('loadingSpinner').innerText = "Erro ao carregar dados.";
         });
     }
 
     function applySettings() {
       document.documentElement.style.setProperty('--primary-color', settings.primaryColor || '#2563eb');
       document.documentElement.style.setProperty('--bg-color', settings.bgColor || '#f1f5f9');
-      document.getElementById('headerTitle').innerText = settings.title || "Catálogo Online";
-      document.getElementById('siteTitle').innerText = settings.title || "Catálogo Online";
+      document.getElementById('headerTitle').innerText = settings.title || "LOJAS TORRES [BREJO]";
+      document.getElementById('siteTitle').innerText = settings.title || "LOJAS TORRES [BREJO]";
       
       const logoImg = document.getElementById('logoImg');
       if (settings.logo) { logoImg.src = settings.logo; logoImg.style.display = 'block'; }
@@ -231,12 +235,12 @@
       bar.innerHTML = `<button class="cat-chip ${activeFolderFilter === 'ALL' ? 'active' : ''}" onclick="filterByFolder('ALL')">📁 Todas</button>`;
       
       folders.forEach(f => {
-        bar.innerHTML += `<button class="cat-chip ${activeFolderFilter === f.id ? 'active' : ''}" onclick="filterByFolder('${f.id}')">📂 ${f.name}</button>`;
+        bar.innerHTML += `<button class="cat-chip ${activeFolderFilter === String(f.id) ? 'active' : ''}" onclick="filterByFolder('${f.id}')">📂 ${f.name}</button>`;
       });
     }
 
     function filterByFolder(folderId) {
-      activeFolderFilter = folderId;
+      activeFolderFilter = String(folderId);
       renderCategoryBar();
       renderProducts();
     }
@@ -255,7 +259,7 @@
 
       let list = products;
       if (activeFolderFilter !== 'ALL') {
-        list = products.filter(p => p.folderId === activeFolderFilter);
+        list = products.filter(p => String(p.folderId) === String(activeFolderFilter));
       }
 
       const query = document.getElementById('searchInput').value.toLowerCase();
@@ -272,7 +276,7 @@
         const card = document.createElement('div');
         card.className = 'product-card';
         const imgs = (prod.images && prod.images.length > 0) ? prod.images : ['https://via.placeholder.com/300'];
-        const folderObj = folders.find(f => f.id === prod.folderId);
+        const folderObj = folders.find(f => String(f.id) === String(prod.folderId));
 
         let imagesHTML = imgs.map((img, idx) => `<img src="${img}" class="${idx === 0 ? 'active' : ''}">`).join('');
         let carouselControls = imgs.length > 1 ? `
@@ -334,19 +338,22 @@
       })
       .then(res => res.json())
       .then(() => {
-        alert("Pasta salva!");
+        alert("Pasta salva com sucesso!");
         resetFolderForm();
         fetchDataFromGoogle();
       });
     }
 
     function startEditFolder(id) {
-      const f = folders.find(item => item.id === id);
+      const f = folders.find(item => String(item.id) === String(id));
       if (!f) return;
+      
       document.getElementById('folderIdInput').value = f.id;
       document.getElementById('folderNameInput').value = f.name;
       document.getElementById('folderDescInput').value = f.desc;
       document.getElementById('folderFormTitle').innerText = "✏️ Editar Pasta: " + f.name;
+      
+      document.getElementById('adminPanel').scrollIntoView({ behavior: 'smooth' });
     }
 
     function deleteFolder(id) {
@@ -399,7 +406,7 @@
         }
       }
 
-      const existingProd = products.find(p => p.id === id);
+      const existingProd = products.find(p => String(p.id) === String(id));
       const finalImages = newImagesBase64.length > 0 ? newImagesBase64 : (existingProd ? existingProd.images : []);
 
       fetch(GOOGLE_API_URL, {
@@ -417,22 +424,34 @@
       })
       .then(res => res.json())
       .then(() => {
-        alert("Produto salvo!");
+        alert("Produto salvo com sucesso!");
         resetProductForm();
-        btn.innerText = "Salvar Produto"; btn.disabled = false;
+        btn.innerText = "Salvar Produto"; 
+        btn.disabled = false;
         fetchDataFromGoogle();
+      })
+      .catch(err => {
+        alert("Erro ao salvar produto.");
+        btn.innerText = "Salvar Produto"; 
+        btn.disabled = false;
       });
     });
 
     function startEditProduct(id) {
-      const prod = products.find(p => p.id === id);
-      if (!prod) return;
+      const prod = products.find(p => String(p.id) === String(id));
+      
+      if (!prod) {
+        alert("Produto não encontrado!");
+        return;
+      }
+
       document.getElementById('editingProductId').value = prod.id;
       document.getElementById('prodName').value = prod.name;
       document.getElementById('prodDesc').value = prod.desc;
       document.getElementById('prodFolderSelect').value = prod.folderId || "";
-      document.getElementById('productFormTitle').innerText = "✏️ Editar Produto";
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('productFormTitle').innerText = "✏️ Editar Produto: " + prod.name;
+      
+      document.getElementById('adminPanel').scrollIntoView({ behavior: 'smooth' });
     }
 
     function resetProductForm() {
