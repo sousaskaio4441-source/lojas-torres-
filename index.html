@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title id="siteTitle">Catálogo Online</title>
+  <style>
+    :root {
+      --primary-color: #2563eb;
+      --bg-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --text-color: #1e293b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-color); padding-bottom: 20px; overflow-x: hidden; }
+
+    header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { max-height: 35px; max-width: 100px; border-radius: 4px; display: none; object-fit: contain; }
+
+    .btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+    .category-bar { display: flex; gap: 8px; overflow-x: auto; padding: 10px 15px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .cat-chip { padding: 8px 16px; border-radius: 20px; background: #f1f5f9; color: #475569; border: none; cursor: pointer; white-space: nowrap; font-weight: 600; }
+    .cat-chip.active { background: var(--primary-color); color: white; }
+
+    .search-container { padding: 15px 15px 5px; }
+    .search-input { width: 100%; padding: 12px 15px; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; background: white; }
+
+    .catalog { padding: 15px; display: grid; grid-template-columns: 1fr; gap: 15px; }
+    @media (min-width: 600px) { .catalog { grid-template-columns: repeat(2, 1fr); } }
+
+    .product-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+    .carousel { position: relative; width: 100%; height: 250px; background: #e2e8f0; }
+    .carousel img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .carousel img.active { display: block; }
+    .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.4); color: white; border: none; padding: 8px 12px; border-radius: 50%; cursor: pointer; }
+    .carousel-btn.prev { left: 10px; } .carousel-btn.next { right: 10px; }
+
+    .product-info { padding: 15px; flex-grow: 1; }
+    .product-info h3 { font-size: 1.1rem; margin-bottom: 5px; }
+    .product-info p { color: #64748b; font-size: 0.9rem; }
+    .badge-pasta { display: inline-block; background: #e2e8f0; color: #334155; font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; margin-top: 5px; font-weight: bold; }
+
+    .admin-panel { padding: 15px; display: none; }
+    .admin-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; }
+    #loginModal { align-items: flex-end; }
+    #loginModal .modal-content { background: white; padding: 20px; border-radius: 20px 20px 0 0; width: 100%; }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+
+    .btn-block { width: 100%; padding: 12px; border: none; margin-bottom: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-primary { background: var(--primary-color); color: white; }
+    .btn-warning { background: #f59e0b; color: white; }
+
+    #loadingSpinner { text-align: center; padding: 20px; display: none; font-weight: bold; color: var(--primary-color); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img id="logoImg" src="" alt="Logo">
+      <h1 id="headerTitle">Catálogo Online</h1>
+    </div>
+    <button class="btn" id="loginBtn" onclick="openLoginModal()">Admin</button>
+  </header>
+
+  <!-- Filtro por Pastas/Categorias -->
+  <div class="category-bar" id="categoryBar">
+    <button class="cat-chip active" onclick="filterByFolder('ALL')">📁 Todas</button>
+  </div>
+
+  <div class="search-container">
+    <input type="search" class="search-input" id="searchInput" placeholder="🔍 Pesquisar produtos..." oninput="filterProducts()">
+  </div>
+
+  <!-- Painel Admin -->
+  <div class="admin-panel" id="adminPanel">
+    <div class="admin-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 id="adminWelcomeTitle">Painel</h2>
+        <button type="button" class="btn btn-danger" style="padding: 8px 12px;" onclick="logout()">Sair</button>
+      </div>
+
+      <!-- EXCLUSIVO PARA SENHA 2312jkma -->
+      <div id="fullAdminSection" style="display: none;">
+        
+        <!-- Aparência -->
+        <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px;">
+          <h3>🎨 Personalizar Aparência</h3>
+          <br>
+          <div class="form-group"><label>Nome do Site</label><input type="text" id="customTitleInput"></div>
+          <div class="form-group"><label>Cor Principal</label><input type="color" id="primaryColorInput"></div>
+          <div class="form-group"><label>Cor de Fundo</label><input type="color" id="bgColorInput"></div>
+          <div class="form-group">
+            <label>Logo do Site</label>
+            <input type="file" id="logoFileInput" accept="image/*" style="display:none;" onchange="handleLogoSelect(this)">
+            <button type="button" class="btn btn-primary btn-block" style="background:#64748b;" onclick="document.getElementById('logoFileInput').click()">📷 Alterar Logo</button>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" onclick="saveCustomizations()">Salvar Alterações Visuais</button>
+        </div>
+
+        <!-- Criar / Editar Pastas -->
+        <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px;">
+          <h3 id="folderFormTitle">📁 Criar / Editar Pasta</h3>
+          <br>
+          <input type="hidden" id="folderIdInput">
+          <div class="form-group"><label>Nome da Pasta</label><input type="text" id="folderNameInput" placeholder="Ex: Guarda-Roupas"></div>
+          <div class="form-group"><label>Legenda / Descrição da Pasta</label><input type="text" id="folderDescInput" placeholder="Ex: Móveis para quarto"></div>
+          <div class="form-group">
+            <label>Foto da Pasta</label>
+            <input type="file" id="folderPhotoInput" accept="image/*">
+          </div>
+          <button type="button" class="btn btn-success btn-block" onclick="saveFolder()">Salvar Pasta</button>
+          <button type="button" class="btn btn-block" style="background:#cbd5e1;" onclick="resetFolderForm()">Limpar / Nova Pasta</button>
+          
+          <div id="foldersManageList" style="margin-top: 10px;"></div>
+        </div>
+
+      </div>
+
+      <!-- Cadastro / Edição de Produtos (Disponível nas duas senhas) -->
+      <div>
+        <h3 id="productFormTitle">➕ Cadastrar Produto</h3>
+        <br>
+        <form id="productForm">
+          <input type="hidden" id="editingProductId">
+          <div class="form-group"><label>Nome do Produto</label><input type="text" id="prodName" required></div>
+          <div class="form-group"><label>Descrição / Legenda</label><textarea id="prodDesc" rows="3" required></textarea></div>
+          <div class="form-group">
+            <label>Pasta do Produto</label>
+            <select id="prodFolderSelect">
+              <option value="">Nenhuma (Sem pasta)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fotos (Envio de novas substitui as antigas)</label>
+            <input type="file" id="prodImagesInput" accept="image/*" multiple>
+          </div>
+          <button type="submit" class="btn btn-success btn-block" id="submitBtn">Salvar Produto</button>
+          <button type="button" class="btn btn-block" style="background:#cbd5e1;" onclick="resetProductForm()">Limpar Formulario</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingSpinner">⏳ Carregando catálogo...</div>
+
+  <main class="catalog" id="catalog"></main>
+
+  <!-- Modal Login -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <h2 style="margin-bottom: 15px; text-align:center;">Acesso Restrito</h2>
+      <div class="form-group"><label>Senha</label><input type="password" id="adminPassword"></div>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-block" style="background: #cbd5e1; color:#1e293b;" onclick="closeLoginModal()">Cancelar</button>
+        <button type="button" class="btn btn-block btn-primary" onclick="login()">Entrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwuiZkfhe9vqV9-7upyfR0FS0PUXdSm4bia6L3kIriI7WvhFSV7_niPX8pmpNyRw2E3RQ/exec";
+    const PASS_TOTAL = "2312jkma";
+    const PASS_PRODUCTS = "admin123";
+
+    let userRole = null;
+    let products = [];
+    let folders = [];
+    let activeFolderFilter = "ALL";
+    let tempLogoBase64 = null;
+
+    let settings = { title: "Catálogo Online", primaryColor: "#2563eb", bgColor: "#f1f5f9", logo: "" };
+
+    function init() { fetchDataFromGoogle(); }
+
+    function fetchDataFromGoogle() {
+      document.getElementById('loadingSpinner').style.display = 'block';
+      fetch(GOOGLE_API_URL)
+        .then(res => res.json())
+        .then(data => {
+          settings = data.settings || settings;
+          products = data.products || [];
+          folders = data.folders || [];
+          applySettings();
+          renderCategoryBar();
+          updateFolderSelect();
+          renderFoldersManageList();
+          renderProducts();
+          document.getElementById('loadingSpinner').style.display = 'none';
+        });
+    }
+
+    function applySettings() {
+      document.documentElement.style.setProperty('--primary-color', settings.primaryColor || '#2563eb');
+      document.documentElement.style.setProperty('--bg-color', settings.bgColor || '#f1f5f9');
+      document.getElementById('headerTitle').innerText = settings.title || "Catálogo Online";
+      document.getElementById('siteTitle').innerText = settings.title || "Catálogo Online";
+      
+      const logoImg = document.getElementById('logoImg');
+      if (settings.logo) { logoImg.src = settings.logo; logoImg.style.display = 'block'; }
+      else { logoImg.style.display = 'none'; }
+
+      document.getElementById('customTitleInput').value = settings.title || '';
+      document.getElementById('primaryColorInput').value = settings.primaryColor || '#2563eb';
+      document.getElementById('bgColorInput').value = settings.bgColor || '#f1f5f9';
+    }
+
+    function renderCategoryBar() {
+      const bar = document.getElementById('categoryBar');
+      bar.innerHTML = `<button class="cat-chip ${activeFolderFilter === 'ALL' ? 'active' : ''}" onclick="filterByFolder('ALL')">📁 Todas</button>`;
+      
+      folders.forEach(f => {
+        bar.innerHTML += `<button class="cat-chip ${activeFolderFilter === f.id ? 'active' : ''}" onclick="filterByFolder('${f.id}')">📂 ${f.name}</button>`;
+      });
+    }
+
+    function filterByFolder(folderId) {
+      activeFolderFilter = folderId;
+      renderCategoryBar();
+      renderProducts();
+    }
+
+    function updateFolderSelect() {
+      const select = document.getElementById('prodFolderSelect');
+      select.innerHTML = `<option value="">Nenhuma (Sem pasta)</option>`;
+      folders.forEach(f => {
+        select.innerHTML += `<option value="${f.id}">${f.name}</option>`;
+      });
+    }
+
+    function renderProducts() {
+      const catalog = document.getElementById('catalog');
+      catalog.innerHTML = "";
+
+      let list = products;
+      if (activeFolderFilter !== 'ALL') {
+        list = products.filter(p => p.folderId === activeFolderFilter);
+      }
+
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      if (query) {
+        list = list.filter(p => p.name.toLowerCase().includes(query) || p.desc.toLowerCase().includes(query));
+      }
+
+      if (list.length === 0) {
+        catalog.innerHTML = `<div style='grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;'>Nenhum produto encontrado.</div>`;
+        return;
+      }
+
+      list.forEach(prod => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        const imgs = (prod.images && prod.images.length > 0) ? prod.images : ['https://via.placeholder.com/300'];
+        const folderObj = folders.find(f => f.id === prod.folderId);
+
+        let imagesHTML = imgs.map((img, idx) => `<img src="${img}" class="${idx === 0 ? 'active' : ''}">`).join('');
+        let carouselControls = imgs.length > 1 ? `
+          <button type="button" class="carousel-btn prev" onclick="moveCarousel(event, this, -1)">❮</button>
+          <button type="button" class="carousel-btn next" onclick="moveCarousel(event, this, 1)">❯</button>
+        ` : '';
+
+        let adminButtons = userRole !== null ? `
+          <div style="display:flex; gap: 5px; margin-top:10px;">
+            <button class="btn btn-warning btn-block" onclick="startEditProduct('${prod.id}')">✏️ Editar</button>
+            <button class="btn btn-danger btn-block" onclick="deleteProduct('${prod.id}')">🗑️ Excluir</button>
+          </div>
+        ` : '';
+
+        card.innerHTML = `
+          <div class="carousel">${imagesHTML}${carouselControls}</div>
+          <div class="product-info">
+            <h3>${prod.name}</h3>
+            <p>${prod.desc}</p>
+            ${folderObj ? `<span class="badge-pasta">📂 ${folderObj.name}</span>` : ''}
+            ${adminButtons}
+          </div>
+        `;
+        catalog.appendChild(card);
+      });
+    }
+
+    function moveCarousel(e, btn, dir) {
+      e.stopPropagation();
+      const imgs = btn.parentElement.querySelectorAll('img');
+      let idx = Array.from(imgs).findIndex(img => img.classList.contains('active'));
+      imgs[idx].classList.remove('active');
+      let newIdx = (idx + dir + imgs.length) % imgs.length;
+      imgs[newIdx].classList.add('active');
+    }
+
+    /* --- GESTÃO DE PASTAS --- */
+    async function saveFolder() {
+      const id = document.getElementById('folderIdInput').value;
+      const name = document.getElementById('folderNameInput').value;
+      const desc = document.getElementById('folderDescInput').value;
+      const fileInput = document.getElementById('folderPhotoInput');
+
+      if (!name) return alert("Informe o nome da pasta!");
+
+      let photoBase64 = "";
+      if (fileInput.files && fileInput.files[0]) {
+        photoBase64 = await readFileAsBase64(fileInput.files[0]);
+      }
+
+      document.getElementById('loadingSpinner').style.display = 'block';
+
+      fetch(GOOGLE_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: "saveFolder",
+          folder: { id: id, name: name, desc: desc, photo: photoBase64 }
+        })
+      })
+      .then(res => res.json())
+      .then(() => {
+        alert("Pasta salva!");
+        resetFolderForm();
+        fetchDataFromGoogle();
+      });
+    }
+
+    function startEditFolder(id) {
+      const f = folders.find(item => item.id === id);
+      if (!f) return;
+      document.getElementById('folderIdInput').value = f.id;
+      document.getElementById('folderNameInput').value = f.name;
+      document.getElementById('folderDescInput').value = f.desc;
+      document.getElementById('folderFormTitle').innerText = "✏️ Editar Pasta: " + f.name;
+    }
+
+    function deleteFolder(id) {
+      if (!confirm("Excluir esta pasta? Os produtos vinculados perderão a categoria.")) return;
+      document.getElementById('loadingSpinner').style.display = 'block';
+      fetch(GOOGLE_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: "deleteFolder", id: id })
+      }).then(() => fetchDataFromGoogle());
+    }
+
+    function resetFolderForm() {
+      document.getElementById('folderIdInput').value = "";
+      document.getElementById('folderNameInput').value = "";
+      document.getElementById('folderDescInput').value = "";
+      document.getElementById('folderPhotoInput').value = "";
+      document.getElementById('folderFormTitle').innerText = "📁 Criar / Editar Pasta";
+    }
+
+    function renderFoldersManageList() {
+      const container = document.getElementById('foldersManageList');
+      if (!container) return;
+      container.innerHTML = "<b>Pastas Existentes:</b>";
+      folders.forEach(f => {
+        container.innerHTML += `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px; margin-top:5px; border-radius:6px;">
+            <span>📂 ${f.name}</span>
+            <div>
+              <button class="btn btn-warning" style="padding:4px 8px; font-size:0.8rem;" onclick="startEditFolder('${f.id}')">Editar</button>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:0.8rem;" onclick="deleteFolder('${f.id}')">Excluir</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    /* --- GESTÃO DE PRODUTOS --- */
+    document.getElementById('productForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.innerText = "Salvando..."; btn.disabled = true;
+
+      const id = document.getElementById('editingProductId').value;
+      const fileInput = document.getElementById('prodImagesInput');
+      let newImagesBase64 = [];
+
+      if (fileInput.files && fileInput.files.length > 0) {
+        for (const file of Array.from(fileInput.files)) {
+          newImagesBase64.push(await readFileAsBase64(file));
+        }
+      }
+
+      const existingProd = products.find(p => p.id === id);
+      const finalImages = newImagesBase64.length > 0 ? newImagesBase64 : (existingProd ? existingProd.images : []);
+
+      fetch(GOOGLE_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: "saveProduct",
+          product: {
+            id: id,
+            name: document.getElementById('prodName').value,
+            desc: document.getElementById('prodDesc').value,
+            folderId: document.getElementById('prodFolderSelect').value,
+            images: finalImages
+          }
+        })
+      })
+      .then(res => res.json())
+      .then(() => {
+        alert("Produto salvo!");
+        resetProductForm();
+        btn.innerText = "Salvar Produto"; btn.disabled = false;
+        fetchDataFromGoogle();
+      });
+    });
+
+    function startEditProduct(id) {
+      const prod = products.find(p => p.id === id);
+      if (!prod) return;
+      document.getElementById('editingProductId').value = prod.id;
+      document.getElementById('prodName').value = prod.name;
+      document.getElementById('prodDesc').value = prod.desc;
+      document.getElementById('prodFolderSelect').value = prod.folderId || "";
+      document.getElementById('productFormTitle').innerText = "✏️ Editar Produto";
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetProductForm() {
+      document.getElementById('editingProductId').value = "";
+      document.getElementById('productForm').reset();
+      document.getElementById('productFormTitle').innerText = "➕ Cadastrar Produto";
+    }
+
+    function deleteProduct(id) {
+      if (!confirm("Excluir este produto?")) return;
+      document.getElementById('loadingSpinner').style.display = 'block';
+      fetch(GOOGLE_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: "delete", id: id })
+      }).then(() => fetchDataFromGoogle());
+    }
+
+    /* --- SISTEMA VISUAL E AUTH --- */
+    function handleLogoSelect(input) {
+      if (input.files && input.files[0]) {
+        readFileAsBase64(input.files[0]).then(b64 => { tempLogoBase64 = b64; });
+      }
+    }
+
+    function saveCustomizations() {
+      if (userRole !== PASS_TOTAL) return;
+      settings.title = document.getElementById('customTitleInput').value;
+      settings.primaryColor = document.getElementById('primaryColorInput').value;
+      settings.bgColor = document.getElementById('bgColorInput').value;
+      if (tempLogoBase64) settings.logo = tempLogoBase64;
+
+      fetch(GOOGLE_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: "saveSettings", settings: settings })
+      }).then(() => { alert("Aparência Salva!"); fetchDataFromGoogle(); });
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function openLoginModal() { document.getElementById('loginModal').style.display = 'flex'; }
+    function closeLoginModal() { document.getElementById('loginModal').style.display = 'none'; }
+
+    function login() {
+      const pass = document.getElementById('adminPassword').value;
+      if (pass === PASS_TOTAL) {
+        userRole = PASS_TOTAL;
+        document.getElementById('adminWelcomeTitle').innerText = "Painel (Acesso Total)";
+        document.getElementById('fullAdminSection').style.display = 'block';
+        document.getElementById('adminPanel').style.display = 'block';
+        document.getElementById('loginBtn').style.display = 'none';
+        closeLoginModal(); renderProducts();
+      } else if (pass === PASS_PRODUCTS) {
+        userRole = PASS_PRODUCTS;
+        document.getElementById('adminWelcomeTitle').innerText = "Painel (Produtos)";
+        document.getElementById('fullAdminSection').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        document.getElementById('loginBtn').style.display = 'none';
+        closeLoginModal(); renderProducts();
+      } else { alert("Senha incorreta!"); }
+    }
+
+    function logout() {
+      userRole = null;
+      document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('loginBtn').style.display = 'block';
+      renderProducts();
+    }
+
+    function filterProducts() { renderProducts(); }
+
+    init();
+  </script>
+</body>
+</html>
